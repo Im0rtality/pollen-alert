@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.3](https://github.com/Im0rtality/pollen-alert/compare/v1.6.2...v1.6.3) (2026-04-05)
+
+
+### Bug Fixes
+
+* **helm:** fix image repository path ([23189c1](https://github.com/Im0rtality/pollen-alert/commit/23189c17577e69220303f3d28b1188fe1f86c8ef))
+
 ## [1.6.2](https://github.com/Im0rtality/pollen-alert/compare/v1.6.1...v1.6.2) (2026-04-05)
 
 
