@@ -12,14 +12,9 @@ config:
   lookaheadHours: ""  # leave empty to use script default (24h)
 
 # Allergens to monitor with per-allergen notification thresholds (grains/m³).
-# Available in SILAM dataset (both regional and europe): ALDER, BIRCH
+# Supported allergens (silam_hires_pollen_v6_1 dataset): ALDER, BIRCH, HAZEL, GRASS, RAGWEED, MUGWORT
 #
-# EAN (European Aeroallergen Network) symptom-onset thresholds for BIRCH (doi:10.1007/s40629-025-00357-5):
-#   Very High  >= 200
-#   High       >=  69
-#   Moderate   >=  23
-#   Low        >=   7
-#   Very Low   >=   2
+# EAN thresholds and SILAM variable names are defined per-allergen in pollen_alert.py.
 allergens:
   - name: BIRCH
     threshold: 81

@@ -9,8 +9,13 @@ from datetime import datetime, timedelta, timezone
 import requests
 
 # Datasets ordered by preference (highest resolution first).
-# Regional covers northern Europe (~2.5 km grid); Europe is the fallback (~10 km).
+# hires covers northern Europe (~1 km grid); regional is the next fallback (~2.5 km);
+# europe is the final fallback (~10 km).
 DATASETS: dict[str, str] = {
+    "hires": (
+        "https://thredds.silam.fmi.fi/thredds/ncss/grid/silam_hires_pollen_v6_1"
+        "/silam_hires_pollen_v6_1_best.ncd"
+    ),
     "regional": (
         "https://thredds.silam.fmi.fi/thredds/ncss/grid/silam_regional_pollen_v6_1"
         "/silam_regional_pollen_v6_1_best.ncd"
@@ -24,7 +29,7 @@ DATASETS: dict[str, str] = {
 _SESSION = requests.Session()
 
 
-def list_allergens(dataset_name: str = "regional") -> list[str]:
+def list_allergens(dataset_name: str = "hires") -> list[str]:
     """Return allergen names available in a SILAM dataset (e.g. ['BIRCH', 'GRASS', ...])."""
     url = DATASETS[dataset_name] + "/dataset.xml"
     resp = _SESSION.get(url, timeout=30)
@@ -33,29 +38,35 @@ def list_allergens(dataset_name: str = "regional") -> list[str]:
     allergens = []
     for grid in root.iter("grid"):
         name = grid.get("name", "")
-        if name.startswith("cnc_POLLEN_") and name.endswith("_m22"):
-            allergens.append(name[len("cnc_POLLEN_"):-len("_m22")])
+        if not name.startswith("cnc_POLLEN_"):
+            continue
+        body = name[len("cnc_POLLEN_"):]
+        if "_" not in body:
+            continue
+        allergen = body.rsplit("_", 1)[0]
+        if allergen not in allergens:
+            allergens.append(allergen)
     return allergens
 
 
 def fetch_pollen(
     lat: str,
     lon: str,
-    allergen: str = "BIRCH",
+    var: str,
+    dataset: str = "hires",
     cache_file: str | None = None,
     hours: int = 24,
 ) -> tuple[str, list[tuple[datetime, float]]]:
-    """Fetch pollen forecast for the given allergen, using cached dataset resolution when available.
+    """Fetch pollen forecast for the given SILAM variable name.
 
-    On first run for a given lat/lon the datasets are probed in preference order
-    and the working one is written to cache_file. Subsequent runs skip straight to
-    the cached dataset. If the cached dataset fails for any reason the probe runs
-    again and the cache is updated.
+    Probes datasets starting from the preferred dataset and falls back through
+    the rest. The working dataset is cached per lat/lon so subsequent runs skip
+    straight to it. If the cached dataset fails the probe runs again.
 
     Returns (dataset_name, readings).
     Raises RuntimeError if no dataset returns data.
     """
-    params = _build_params(lat, lon, allergen, hours)
+    params = _build_params(lat, lon, var, hours)
 
     if cache_file:
         cached = _read_cache(cache_file, lat, lon)
@@ -66,7 +77,7 @@ def fetch_pollen(
                 return cached, readings
             print(f"  Cached dataset '{cached}' returned no data — re-probing all datasets")
 
-    return _probe(lat, lon, params, cache_file)
+    return _probe(lat, lon, params, cache_file, dataset)
 
 
 def _probe(
@@ -74,9 +85,11 @@ def _probe(
     lon: str,
     params: dict,
     cache_file: str | None,
+    preferred_dataset: str,
 ) -> tuple[str, list[tuple[datetime, float]]]:
+    order = [preferred_dataset] + [k for k in DATASETS if k != preferred_dataset]
     last_tried: str | None = None
-    for name in DATASETS:
+    for name in order:
         readings = _query(name, params)
         if readings is not None:
             if cache_file:
@@ -103,10 +116,10 @@ def _query(name: str, params: dict) -> list[tuple[datetime, float]] | None:
     return readings
 
 
-def _build_params(lat: str, lon: str, allergen: str, hours: int) -> dict:
+def _build_params(lat: str, lon: str, var: str, hours: int) -> dict:
     now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
     return {
-        "var": f"cnc_POLLEN_{allergen}_m22",
+        "var": var,
         "latitude": lat,
         "longitude": lon,
         "vertCoord": "12.5",

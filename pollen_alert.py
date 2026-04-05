@@ -2,6 +2,7 @@ import math
 import os
 import sys
 from datetime import datetime, timedelta, timezone
+from enum import StrEnum
 from zoneinfo import ZoneInfo
 
 import pushover
@@ -17,6 +18,86 @@ PUSHOVER_USER_KEY = os.environ["PUSHOVER_USER_KEY"]
 LOOKAHEAD_HOURS = float(os.environ.get("POLLEN_LOOKAHEAD_HOURS", "24"))
 
 
+class EANClass(StrEnum):
+    VERY_HIGH = "Very High"
+    HIGH      = "High"
+    MODERATE  = "Moderate"
+    LOW       = "Low"
+    VERY_LOW  = "Very Low"
+
+
+# Per-allergen config: SILAM dataset, variable name, and EAN symptom-onset thresholds.
+# Thresholds from doi:10.1007/s40629-025-00357-5 (BIRCH) and EAN consensus values
+# (ALDER, HAZEL, GRASS, RAGWEED).
+ALLERGEN_CONFIG: dict[str, dict] = {
+    "BIRCH": {
+        "dataset": "hires",
+        "var": "cnc_POLLEN_BIRCH_m22",
+        "thresholds": [
+            (200, EANClass.VERY_HIGH),
+            (69,  EANClass.HIGH),
+            (23,  EANClass.MODERATE),
+            (7,   EANClass.LOW),
+            (2,   EANClass.VERY_LOW),
+        ],
+    },
+    "ALDER": {
+        "dataset": "hires",
+        "var": "cnc_POLLEN_ALDER_m22",
+        "thresholds": [
+            (100, EANClass.VERY_HIGH),
+            (30,  EANClass.HIGH),
+            (10,  EANClass.MODERATE),
+            (1,   EANClass.LOW),
+        ],
+    },
+    "HAZEL": {
+        "dataset": "hires",
+        "var": "cnc_POLLEN_HAZEL_m23",
+        "thresholds": [
+            (100, EANClass.VERY_HIGH),
+            (30,  EANClass.HIGH),
+            (10,  EANClass.MODERATE),
+            (1,   EANClass.LOW),
+        ],
+    },
+    "GRASS": {
+        "dataset": "hires",
+        "var": "cnc_POLLEN_GRASS_m32",
+        "thresholds": [
+            (50,  EANClass.VERY_HIGH),
+            (30,  EANClass.HIGH),
+            (10,  EANClass.MODERATE),
+            (1,   EANClass.LOW),
+        ],
+    },
+    "RAGWEED": {
+        "dataset": "hires",
+        "var": "cnc_POLLEN_RAGWEED_m18",
+        "thresholds": [
+            (50,  EANClass.VERY_HIGH),
+            (30,  EANClass.HIGH),
+            (10,  EANClass.MODERATE),
+            (1,   EANClass.LOW),
+        ],
+    },
+    "MUGWORT": {
+        "dataset": "hires",
+        "var": "cnc_POLLEN_MUGWORT_m18",
+        "thresholds": [],  # No published EAN g/m³ thresholds — classify() returns None → "Elevated"
+    },
+}
+
+# Pushover notification priority by EAN class.
+EAN_PRIORITY: dict[EANClass, int] = {
+    EANClass.VERY_HIGH:  1,
+    EANClass.HIGH:       1,
+    EANClass.MODERATE:   0,
+    EANClass.LOW:       -1,
+    EANClass.VERY_LOW:  -1,
+}
+
+
 def _parse_allergens(val: str) -> list[tuple[str, float]]:
     result = []
     for item in val.split(","):
@@ -27,23 +108,12 @@ def _parse_allergens(val: str) -> list[tuple[str, float]]:
 
 ALLERGENS = _parse_allergens(os.environ.get("POLLEN_ALLERGENS", "BIRCH:1"))
 
-# EAN thresholds for known allergens (grains/m³) — doi:10.1007/s40629-025-00357-5
-ALLERGEN_LEVELS: dict[str, list[tuple[float, str, int]]] = {
-    "BIRCH": [
-        (200, "Very High",  1),
-        (69,  "High",       1),
-        (23,  "Moderate",   0),
-        (7,   "Low",       -1),
-        (2,   "Very Low",  -1),
-    ],
-}
 
-
-def classify(peak: float, allergen: str) -> tuple[str, int] | tuple[None, None]:
-    for threshold, label, priority in ALLERGEN_LEVELS.get(allergen, []):
+def classify(peak: float, allergen: str) -> EANClass | None:
+    for threshold, level in ALLERGEN_CONFIG.get(allergen, {}).get("thresholds", []):
         if peak >= threshold:
-            return label, priority
-    return None, None
+            return level
+    return None
 
 
 def high_pollen_window(
@@ -74,14 +144,17 @@ def _process_allergen(
         print(f"  Below threshold ({threshold:.0f} g/m³) — skipping")
         return None
 
-    level, priority = classify(peak_value, allergen)
+    level = classify(peak_value, allergen)
+    thresholds = ALLERGEN_CONFIG.get(allergen, {}).get("thresholds", [])
 
-    levels = ALLERGEN_LEVELS.get(allergen, [])
     if level is None:
-        level, priority = "Elevated", 0
+        level_label = "Elevated"
+        priority = 0
         window_threshold = threshold
     else:
-        level_thresholds = {lbl: thr for thr, lbl, _ in levels}
+        level_label = str(level)
+        priority = EAN_PRIORITY[level]
+        level_thresholds = {lbl: thr for thr, lbl in thresholds}
         window_threshold = level_thresholds[level]
 
     window_str = ""
@@ -90,17 +163,18 @@ def _process_allergen(
         pw_start = peak_window[0].astimezone(LOCAL_TZ)
         pw_end = peak_window[1].astimezone(LOCAL_TZ)
         pw_dur = max(1, round((peak_window[1] - peak_window[0]).total_seconds() / 3600))
-        window_str = f"\n{level}: {fmt_window(pw_start, pw_end, pw_dur)}"
+        window_str = f"\n{level_label}: {fmt_window(pw_start, pw_end, pw_dur)}"
 
-    if levels:
-        high_threshold = {lbl: thr for thr, lbl, _ in levels}.get("High")
+    if thresholds:
+        level_thresholds = {lbl: thr for thr, lbl in thresholds}
+        high_threshold = level_thresholds.get(EANClass.HIGH)
         if high_threshold and window_threshold > high_threshold and high_pollen_window(readings, high_threshold):
             window_str += f"\nNext {LOOKAHEAD_HOURS:.0f}h: High+"
 
-    print(f"  Risk: {level} (Pushover priority {priority})")
+    print(f"  Risk: {level_label} (Pushover priority {priority})")
     return {
         "allergen": allergen,
-        "level": level,
+        "level": level_label,
         "priority": priority,
         "message": f"Peak: {peak_value:.0f} grains/m³ at {local_peak.strftime('%H')}h{window_str}",
     }
@@ -108,7 +182,7 @@ def _process_allergen(
 
 def main() -> None:
     if len(sys.argv) > 1 and sys.argv[1] == "--list-allergens":
-        dataset = sys.argv[2] if len(sys.argv) > 2 else "regional"
+        dataset = sys.argv[2] if len(sys.argv) > 2 else "hires"
         print(f"Available allergens in '{dataset}' dataset:")
         for a in silam.list_allergens(dataset):
             print(f"  {a}")
@@ -118,9 +192,18 @@ def main() -> None:
 
     alerts = []
     for allergen, threshold in ALLERGENS:
+        cfg = ALLERGEN_CONFIG.get(allergen)
+        if cfg is None:
+            print(f"\nUnknown allergen '{allergen}' — not in ALLERGEN_CONFIG, skipping")
+            continue
+
         print(f"\nFetching {allergen} pollen forecast (lookahead: {LOOKAHEAD_HOURS}h, threshold: {threshold:.0f} g/m³)...")
         dataset, readings = silam.fetch_pollen(
-            LAT, LON, allergen=allergen, cache_file=CACHE_FILE, hours=math.ceil(LOOKAHEAD_HOURS)
+            LAT, LON,
+            var=cfg["var"],
+            dataset=cfg["dataset"],
+            cache_file=CACHE_FILE,
+            hours=math.ceil(LOOKAHEAD_HOURS),
         )
         now = datetime.now(timezone.utc)
         readings = [(dt, v) for dt, v in readings if dt <= now + timedelta(hours=LOOKAHEAD_HOURS)]
