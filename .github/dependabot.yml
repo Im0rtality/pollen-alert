@@ -11,7 +11,6 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    versioning-strategy: pin
     cooldown:
       default-days: 7
 
