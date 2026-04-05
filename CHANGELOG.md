@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.2](https://github.com/Im0rtality/pollen-alert/compare/v1.6.1...v1.6.2) (2026-04-05)
+
+
+### Bug Fixes
+
+* **helm:** use appVersion as default image tag, update appVersion to 1.6.1 ([43cb90f](https://github.com/Im0rtality/pollen-alert/commit/43cb90fe0cbe54f7f2ff9231f9252050fb151849))
+
 ## [1.6.1](https://github.com/Im0rtality/pollen-alert/compare/v1.6.0...v1.6.1) (2026-04-05)
 
 
