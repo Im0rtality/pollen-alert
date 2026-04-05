@@ -30,6 +30,11 @@ secrets:
   pushoverToken: ""
   pushoverUserKey: ""
 
+serviceMonitor:
+  enabled: false
+  interval: 60s
+  labels: {}
+
 # Persistent volume for dataset resolution cache and readings.
 persistence:
   enabled: true
