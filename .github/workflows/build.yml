@@ -37,3 +37,10 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Push Helm chart
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          helm package ./helm --version "$VERSION" --app-version "$VERSION"
+          helm push pollen-alert-*.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
