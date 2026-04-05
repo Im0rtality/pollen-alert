@@ -1,14 +1,17 @@
-# Use either city name (geocoded via Nominatim) or explicit coordinates.
-# If latitude + longitude are set, geocoding is skipped entirely.
-city = "YOUR_CITY"
+# Location: use either city name (geocoded via Nominatim) or explicit coordinates.
+# If latitude + longitude are set, city is ignored.
+city = "Kaunas"
 # latitude = "YOUR_LATITUDE"
 # longitude = "YOUR_LONGITUDE"
-lookahead_hours = 24
-fetch_interval_hours = 1
-notify_hours = [5]
+
+lookahead_hours = 24      # hours ahead to scan for peak pollen
+fetch_interval_hours = 1  # how often to refresh the forecast (hours)
+notify_hours = [5]        # local hours to send the daily alert (e.g. [7] for 7am, [7, 19] for twice daily)
+timezone = "UTC"          # IANA timezone for display and notify_hours (e.g. "Europe/Vilnius", "America/New_York")
 
 # Supported allergens: ALDER, BIRCH, HAZEL, GRASS, RAGWEED, MUGWORT
-# threshold: minimum grains/m³ to trigger a Pushover notification
+# threshold: grains/m³ — notification is sent only when forecast peak exceeds this
+# Add one [[allergens]] block per allergen you want to track.
 
 [[allergens]]
 name = "BIRCH"
