@@ -10,6 +10,7 @@ from datetime import date, datetime, timedelta, timezone
 from enum import StrEnum
 from zoneinfo import ZoneInfo
 
+import requests
 import pushover
 import silam
 from prometheus_client import Gauge, start_http_server
@@ -19,9 +20,48 @@ LOCAL_TZ = ZoneInfo("Europe/Vilnius")
 # Deployment env vars (not in config file)
 CACHE_FILE = os.environ.get("CACHE_FILE", "/cache/dataset.json")
 READINGS_FILE = os.environ.get("READINGS_FILE", "/cache/readings.json")
+GEOCODE_CACHE_FILE = os.environ.get("GEOCODE_CACHE_FILE", "/cache/geocode.json")
 PUSHOVER_TOKEN = os.environ["PUSHOVER_TOKEN"]
 PUSHOVER_USER_KEY = os.environ["PUSHOVER_USER_KEY"]
 METRICS_PORT = int(os.environ.get("METRICS_PORT", "") or "0")
+
+
+def _geocode(city: str) -> tuple[str, str]:
+    """Return (lat, lon) for a city name, caching results to GEOCODE_CACHE_FILE."""
+    try:
+        with open(GEOCODE_CACHE_FILE) as _gf:
+            _gcache = json.load(_gf)
+        if city in _gcache:
+            lat, lon = _gcache[city]["lat"], _gcache[city]["lon"]
+            print(f"INFO: geocode cache hit {city!r} → ({lat}, {lon})", file=sys.stderr)
+            return lat, lon
+    except (OSError, json.JSONDecodeError, KeyError):
+        _gcache = {}
+
+    resp = requests.get(
+        "https://nominatim.openstreetmap.org/search",
+        params={"q": city, "format": "json", "limit": 1},
+        headers={"User-Agent": "pollen-alert/1.0"},
+        timeout=10,
+    )
+    resp.raise_for_status()
+    results = resp.json()
+    if not results:
+        print(f"ERROR: city not found via geocoding: {city!r}", file=sys.stderr)
+        sys.exit(1)
+
+    lat, lon = results[0]["lat"], results[0]["lon"]
+    display_name = results[0].get("display_name", "")
+    print(f"INFO: geocoded {city!r} → {display_name!r} ({lat}, {lon})", file=sys.stderr)
+    _gcache[city] = {"lat": lat, "lon": lon}
+    try:
+        with open(GEOCODE_CACHE_FILE, "w") as _gf:
+            json.dump(_gcache, _gf)
+    except OSError as _e:
+        print(f"WARNING: could not save geocode cache: {_e}", file=sys.stderr)
+
+    return lat, lon
+
 
 # User config from TOML file
 _CONFIG_FILE = os.environ.get("CONFIG_FILE", "/config/pollen-alert.toml")
@@ -35,8 +75,14 @@ except tomllib.TOMLDecodeError as _e:
     print(f"ERROR: invalid TOML in {_CONFIG_FILE}: {_e}", file=sys.stderr)
     sys.exit(1)
 
-LAT: str = _cfg["latitude"]
-LON: str = _cfg["longitude"]
+if "latitude" in _cfg and "longitude" in _cfg:
+    LAT: str = str(_cfg["latitude"])
+    LON: str = str(_cfg["longitude"])
+elif "city" in _cfg:
+    LAT, LON = _geocode(_cfg["city"])
+else:
+    print("ERROR: config must specify either [latitude + longitude] or [city]", file=sys.stderr)
+    sys.exit(1)
 LOOKAHEAD_HOURS: float = float(_cfg.get("lookahead_hours", 24))
 FETCH_INTERVAL_HOURS: float = float(_cfg.get("fetch_interval_hours", 1))
 NOTIFY_HOURS: set[int] = set(_cfg.get("notify_hours", [5]))
