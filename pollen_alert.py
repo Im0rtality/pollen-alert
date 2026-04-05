@@ -448,8 +448,8 @@ def main() -> None:
     if METRICS_PORT:
         start_http_server(METRICS_PORT)
         log.info("Metrics server listening on :%d", METRICS_PORT)
-        log.info("Fetch interval: every %.0fh | Notify at UTC hours: %s",
-                 FETCH_INTERVAL_HOURS, sorted(NOTIFY_HOURS))
+        log.info("Fetch interval: every %.0fh | Notify at local hours (%s): %s",
+                 FETCH_INTERVAL_HOURS, _cfg.get("timezone", "UTC"), sorted(NOTIFY_HOURS))
 
         saved = _load_readings()
         if saved:
