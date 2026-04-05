@@ -1,5 +1,8 @@
-latitude = "YOUR_LATITUDE"
-longitude = "YOUR_LONGITUDE"
+# Use either city name (geocoded via Nominatim) or explicit coordinates.
+# If latitude + longitude are set, geocoding is skipped entirely.
+city = "YOUR_CITY"
+# latitude = "YOUR_LATITUDE"
+# longitude = "YOUR_LONGITUDE"
 lookahead_hours = 24
 fetch_interval_hours = 1
 notify_hours = [5]
