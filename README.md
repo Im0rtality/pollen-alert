@@ -66,6 +66,16 @@ Cache persists in `./cache/` between runs.
 
 Docker images are published to `ghcr.io/im0rtality/pollen-alert` on every tagged release. Images are tagged with the full semver version (`1.2.3`), minor (`1.2`), and `latest` (most recent tag).
 
+The Helm chart is published as an OCI artifact to `oci://ghcr.io/im0rtality/charts/pollen-alert` on every tagged release.
+
+```bash
+helm install pollen-alert oci://ghcr.io/im0rtality/charts/pollen-alert \
+  --set secrets.pushoverToken=xxx \
+  --set secrets.pushoverUserKey=yyy
+```
+
+Or with a local copy of the chart:
+
 ```bash
 helm install pollen-alert ./helm \
   --set secrets.pushoverToken=xxx \
