@@ -1,6 +1,6 @@
 image:
   repository: ghcr.io/laurynas/pollen-alert
-  tag: latest
+  tag: ""
   pullPolicy: Always
 
 # Deployment settings (passed as env vars, not in config file)
