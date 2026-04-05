@@ -35,6 +35,14 @@ spec:
                     secretKeyRef:
                       name: {{ include "pollen-alert.fullname" . }}-secrets
                       key: pushoverUserKey
+                {{- if .Values.config.lookaheadHours }}
+                - name: POLLEN_LOOKAHEAD_HOURS
+                  value: {{ .Values.config.lookaheadHours | quote }}
+                {{- end }}
+                {{- if .Values.config.pollenNotificationThreshold }}
+                - name: POLLEN_NOTIFICATION_THRESHOLD
+                  value: {{ .Values.config.pollenNotificationThreshold | quote }}
+                {{- end }}
                 {{- if .Values.persistence.enabled }}
                 - name: CACHE_FILE
                   value: /cache/dataset.json

@@ -9,6 +9,8 @@ schedule: "0 5 * * *"
 config:
   latitude: "YOUR_LATITUDE"
   longitude: "YOUR_LONGITUDE"
+  lookaheadHours: ""               # leave empty to use script default (24h)
+  pollenNotificationThreshold: ""  # leave empty to use script default (1 g/m³)
 
 # imagePullSecrets:
 #   - name: ghcr-pull-secret
