@@ -9,8 +9,11 @@ metricsPort: 8080
 # User config — rendered into /config/pollen-alert.toml via ConfigMap.
 # Supported allergens: ALDER, BIRCH, HAZEL, GRASS, RAGWEED, MUGWORT
 config:
-  latitude: "YOUR_LATITUDE"
-  longitude: "YOUR_LONGITUDE"
+  # Use either city (geocoded via Nominatim) or explicit coordinates.
+  # If city is set, latitude/longitude are ignored.
+  city: ""
+  latitude: ""
+  longitude: ""
   lookaheadHours: 24
   fetchIntervalHours: 1
   notifyHours:
