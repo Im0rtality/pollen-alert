@@ -1,0 +1,29 @@
+image:
+  repository: ghcr.io/laurynas/pollen-alert
+  tag: latest
+  pullPolicy: Always
+
+# Cron schedule (UTC). 5:00 UTC = 8:00 EEST / 7:00 EET
+schedule: "0 5 * * *"
+
+config:
+  latitude: "54.8985"
+  longitude: "23.9036"
+
+# imagePullSecrets:
+#   - name: ghcr-pull-secret
+
+# Secrets are passed at install time:
+#   helm install pollen-alert ./helm \
+#     --set secrets.pushoverToken=xxx \
+#     --set secrets.pushoverUserKey=yyy
+secrets:
+  pushoverToken: ""
+  pushoverUserKey: ""
+
+# Persistent volume for dataset resolution cache.
+# Without this the dataset is re-probed on every CronJob run.
+persistence:
+  enabled: true
+  size: 1Mi
+  storageClass: ""  # use cluster default
