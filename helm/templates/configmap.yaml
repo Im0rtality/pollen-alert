@@ -13,6 +13,7 @@ data:
     lookahead_hours = {{ .Values.config.lookaheadHours }}
     fetch_interval_hours = {{ .Values.config.fetchIntervalHours }}
     notify_hours = [{{ .Values.config.notifyHours | join ", " }}]
+    timezone = {{ .Values.config.timezone | quote }}
     {{- range .Values.config.allergens }}
 
     [[allergens]]
