@@ -15,8 +15,6 @@ import pushover
 import silam
 from prometheus_client import Gauge, start_http_server
 
-LOCAL_TZ = ZoneInfo("Europe/Vilnius")
-
 # Deployment env vars (not in config file)
 CACHE_FILE = os.environ.get("CACHE_FILE", "/cache/dataset.json")
 READINGS_FILE = os.environ.get("READINGS_FILE", "/cache/readings.json")
@@ -86,6 +84,7 @@ else:
 LOOKAHEAD_HOURS: float = float(_cfg.get("lookahead_hours", 24))
 FETCH_INTERVAL_HOURS: float = float(_cfg.get("fetch_interval_hours", 1))
 NOTIFY_HOURS: set[int] = set(_cfg.get("notify_hours", [5]))
+LOCAL_TZ = ZoneInfo(_cfg.get("timezone", "UTC"))
 
 log = logging.getLogger(__name__)
 
@@ -419,9 +418,9 @@ def _fetch_loop() -> None:
 
 
 def _notify_loop() -> None:
-    last_notified: dict[int, date] = {}  # hour -> last date notified at that hour
+    last_notified: dict[int, date] = {}  # hour -> last date notified at that hour (local)
     while True:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(LOCAL_TZ)
         if now.hour in NOTIFY_HOURS and last_notified.get(now.hour) != now.date():
             last_notified[now.hour] = now.date()
             try:
