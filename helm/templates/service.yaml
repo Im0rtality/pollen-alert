@@ -9,5 +9,5 @@ spec:
     app: {{ include "pollen-alert.fullname" . }}
   ports:
     - name: metrics
-      port: {{ .Values.config.metricsPort }}
-      targetPort: {{ .Values.config.metricsPort }}
+      port: {{ .Values.metricsPort }}
+      targetPort: {{ .Values.metricsPort }}
