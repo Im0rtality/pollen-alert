@@ -24,21 +24,40 @@ Dataset resolution is cached so each run makes exactly one HTTP request after th
 
 ## Configuration
 
-All config is via environment variables:
+User config is in `pollen-alert.toml`. Specify location either by city name (geocoded via [Nominatim](https://nominatim.openstreetmap.org)) or by explicit coordinates — if both are present, coordinates take precedence:
+
+```toml
+# Option A: city name (geocoded on first run, result cached)
+city = "Kaunas, Lithuania"
+
+# Option B: explicit coordinates (geocoding skipped)
+# latitude = "54.8982"
+# longitude = "23.9045"
+
+lookahead_hours = 24
+fetch_interval_hours = 1
+notify_hours = [5]
+
+[[allergens]]
+name = "BIRCH"
+threshold = 81
+```
+
+Secrets and deployment env vars:
 
 | Variable | Default | Description |
 |---|---|---|
-| `LATITUDE` | `YOUR_LATITUDE` | Location latitude |
-| `LONGITUDE` | `YOUR_LONGITUDE` | Location longitude |
 | `PUSHOVER_TOKEN` | — | Pushover app API token (required) |
 | `PUSHOVER_USER_KEY` | — | Pushover user key (required) |
-| `POLLEN_ALLERGENS` | `BIRCH:1` | Comma-separated `ALLERGEN:threshold` pairs (grains/m³) |
-| `POLLEN_LOOKAHEAD_HOURS` | `24` | Forecast window in hours |
 | `CACHE_FILE` | `/cache/dataset.json` | Path for dataset resolution cache |
+| `READINGS_FILE` | `/cache/readings.json` | Path for readings cache |
+| `GEOCODE_CACHE_FILE` | `/cache/geocode.json` | Path for geocoding cache |
+| `METRICS_PORT` | — | Port for Prometheus metrics (enables server mode) |
+| `CONFIG_FILE` | `/config/pollen-alert.toml` | Path to config file |
 
 ### Allergens
 
-The SILAM dataset currently provides forecasts for: **ALDER**, **BIRCH**
+The SILAM dataset currently provides forecasts for: **ALDER**, **BIRCH**, **HAZEL**, **GRASS**, **RAGWEED**, **MUGWORT**
 
 Configure multiple allergens via `POLLEN_ALLERGENS`:
 ```
@@ -71,7 +90,8 @@ The Helm chart is published as an OCI artifact to `oci://ghcr.io/im0rtality/char
 ```bash
 helm install pollen-alert oci://ghcr.io/im0rtality/charts/pollen-alert \
   --set secrets.pushoverToken=xxx \
-  --set secrets.pushoverUserKey=yyy
+  --set secrets.pushoverUserKey=yyy \
+  --set config.city="Kaunas, Lithuania"
 ```
 
 Or with a local copy of the chart:
@@ -79,7 +99,17 @@ Or with a local copy of the chart:
 ```bash
 helm install pollen-alert ./helm \
   --set secrets.pushoverToken=xxx \
-  --set secrets.pushoverUserKey=yyy
+  --set secrets.pushoverUserKey=yyy \
+  --set config.city="Kaunas, Lithuania"
+```
+
+To use explicit coordinates instead of a city name:
+```bash
+helm install pollen-alert ./helm \
+  --set secrets.pushoverToken=xxx \
+  --set secrets.pushoverUserKey=yyy \
+  --set config.latitude=54.8982 \
+  --set config.longitude=23.9045
 ```
 
 To monitor multiple allergens:
@@ -87,8 +117,9 @@ To monitor multiple allergens:
 helm install pollen-alert ./helm \
   --set secrets.pushoverToken=xxx \
   --set secrets.pushoverUserKey=yyy \
-  --set 'allergens[0].name=BIRCH' --set 'allergens[0].threshold=81' \
-  --set 'allergens[1].name=ALDER' --set 'allergens[1].threshold=50'
+  --set config.city="Kaunas, Lithuania" \
+  --set 'config.allergens[0].name=BIRCH' --set 'config.allergens[0].threshold=81' \
+  --set 'config.allergens[1].name=ALDER' --set 'config.allergens[1].threshold=50'
 ```
 
 A PersistentVolumeClaim (`1Mi`) is created automatically to hold the dataset cache across CronJob runs. The job runs daily at 05:00 UTC (08:00 EEST / 07:00 EET).

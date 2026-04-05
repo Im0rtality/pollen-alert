@@ -4,8 +4,12 @@ metadata:
   name: {{ include "pollen-alert.fullname" . }}-config
 data:
   pollen-alert.toml: |
+    {{- if .Values.config.city }}
+    city = {{ .Values.config.city | quote }}
+    {{- else }}
     latitude = {{ .Values.config.latitude | quote }}
     longitude = {{ .Values.config.longitude | quote }}
+    {{- end }}
     lookahead_hours = {{ .Values.config.lookaheadHours }}
     fetch_interval_hours = {{ .Values.config.fetchIntervalHours }}
     notify_hours = [{{ .Values.config.notifyHours | join ", " }}]
