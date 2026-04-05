@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pollen-alert.fullname" . }}
+  labels:
+    app: {{ include "pollen-alert.fullname" . }}
+spec:
+  selector:
+    app: {{ include "pollen-alert.fullname" . }}
+  ports:
+    - name: metrics
+      port: {{ .Values.config.metricsPort }}
+      targetPort: {{ .Values.config.metricsPort }}

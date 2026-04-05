@@ -1,0 +1,12 @@
+latitude = "YOUR_LATITUDE"
+longitude = "YOUR_LONGITUDE"
+lookahead_hours = 24
+fetch_interval_hours = 1
+notify_hours = [5]
+
+# Supported allergens: ALDER, BIRCH, HAZEL, GRASS, RAGWEED, MUGWORT
+# threshold: minimum grains/m³ to trigger a Pushover notification
+
+[[allergens]]
+name = "BIRCH"
+threshold = 81

@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pollen-alert.fullname" . }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "pollen-alert.fullname" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "pollen-alert.fullname" . }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: pollen-alert
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.metricsPort }}
+          env:
+            - name: METRICS_PORT
+              value: {{ .Values.metricsPort | quote }}
+            - name: PUSHOVER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pollen-alert.fullname" . }}-secrets
+                  key: pushoverToken
+            - name: PUSHOVER_USER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pollen-alert.fullname" . }}-secrets
+                  key: pushoverUserKey
+            {{- if .Values.persistence.enabled }}
+            - name: CACHE_FILE
+              value: /cache/dataset.json
+            - name: READINGS_FILE
+              value: /cache/readings.json
+            {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            {{- if .Values.persistence.enabled }}
+            - name: cache
+              mountPath: /cache
+            {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "pollen-alert.fullname" . }}-config
+        {{- if .Values.persistence.enabled }}
+        - name: cache
+          persistentVolumeClaim:
+            claimName: {{ include "pollen-alert.fullname" . }}-cache
+        {{- end }}

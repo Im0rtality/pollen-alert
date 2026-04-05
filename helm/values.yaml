@@ -3,21 +3,21 @@ image:
   tag: latest
   pullPolicy: Always
 
-# Cron schedule (UTC). 5:00 UTC = 8:00 EEST / 7:00 EET
-schedule: "0 5 * * *"
+# Deployment settings (passed as env vars, not in config file)
+metricsPort: 8080
 
+# User config — rendered into /config/pollen-alert.toml via ConfigMap.
+# Supported allergens: ALDER, BIRCH, HAZEL, GRASS, RAGWEED, MUGWORT
 config:
   latitude: "YOUR_LATITUDE"
   longitude: "YOUR_LONGITUDE"
-  lookaheadHours: ""  # leave empty to use script default (24h)
-
-# Allergens to monitor with per-allergen notification thresholds (grains/m³).
-# Supported allergens (silam_hires_pollen_v6_1 dataset): ALDER, BIRCH, HAZEL, GRASS, RAGWEED, MUGWORT
-#
-# EAN thresholds and SILAM variable names are defined per-allergen in pollen_alert.py.
-allergens:
-  - name: BIRCH
-    threshold: 81
+  lookaheadHours: 24
+  fetchIntervalHours: 1
+  notifyHours:
+    - 5
+  allergens:
+    - name: BIRCH
+      threshold: 81
 
 # imagePullSecrets:
 #   - name: ghcr-pull-secret
@@ -30,8 +30,7 @@ secrets:
   pushoverToken: ""
   pushoverUserKey: ""
 
-# Persistent volume for dataset resolution cache.
-# Without this the dataset is re-probed on every CronJob run.
+# Persistent volume for dataset resolution cache and readings.
 persistence:
   enabled: true
   size: 1Mi

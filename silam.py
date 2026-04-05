@@ -2,11 +2,14 @@
 
 import csv
 import json
+import logging
 import os
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 
 import requests
+
+log = logging.getLogger(__name__)
 
 # Datasets ordered by preference (highest resolution first).
 # hires covers northern Europe (~1 km grid); regional is the next fallback (~2.5 km);
@@ -71,11 +74,11 @@ def fetch_pollen(
     if cache_file:
         cached = _read_cache(cache_file, lat, lon)
         if cached:
-            print(f"  Using cached dataset: {cached}")
+            log.debug("Using cached dataset: %s", cached)
             readings = _query(cached, params)
             if readings is not None:
                 return cached, readings
-            print(f"  Cached dataset '{cached}' returned no data — re-probing all datasets")
+            log.warning("Cached dataset '%s' returned no data — re-probing all datasets", cached)
 
     return _probe(lat, lon, params, cache_file, dataset)
 
@@ -94,7 +97,7 @@ def _probe(
         if readings is not None:
             if cache_file:
                 _write_cache(cache_file, lat, lon, name)
-                print(f"  Cached dataset selection: {name}")
+                log.debug("Cached dataset selection: %s", name)
             return name, readings
         last_tried = name
     raise RuntimeError(f"No data from any dataset (last tried: {last_tried})")
@@ -103,15 +106,15 @@ def _probe(
 def _query(name: str, params: dict) -> list[tuple[datetime, float]] | None:
     url = DATASETS[name]
     req = requests.Request("GET", url, params=params).prepare()
-    print(f"  [{name}] {req.url}")
+    log.debug("[%s] %s", name, req.url)
     resp = _SESSION.send(req, timeout=30)
     if resp.status_code != 200:
-        print(f"  [{name}] HTTP {resp.status_code} — skipping")
+        log.warning("[%s] HTTP %d — skipping", name, resp.status_code)
         return None
-    print(f"  [{name}] HTTP 200, {len(resp.content)} bytes")
+    log.debug("[%s] HTTP 200, %d bytes", name, len(resp.content))
     readings = _parse_csv(resp.text)
     if not readings:
-        print(f"  [{name}] no data points in response — skipping")
+        log.warning("[%s] no data points in response — skipping", name)
         return None
     return readings
 
@@ -148,7 +151,7 @@ def _write_cache(cache_file: str, lat: str, lon: str, dataset: str) -> None:
         with open(cache_file, "w") as f:
             json.dump({"lat": lat, "lon": lon, "dataset": dataset}, f)
     except OSError as e:
-        print(f"  Warning: could not write cache: {e}")
+        log.warning("Could not write dataset cache: %s", e)
 
 
 def _parse_csv(csv_text: str) -> list[tuple[datetime, float]]:
