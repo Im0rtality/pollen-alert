@@ -1,8 +1,9 @@
-"""SILAM THREDDS NCSS client for birch pollen forecasts."""
+"""SILAM THREDDS NCSS client for pollen forecasts."""
 
 import csv
 import json
 import os
+import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 
 import requests
@@ -23,13 +24,28 @@ DATASETS: dict[str, str] = {
 _SESSION = requests.Session()
 
 
-def fetch_birch_pollen(
+def list_allergens(dataset_name: str = "regional") -> list[str]:
+    """Return allergen names available in a SILAM dataset (e.g. ['BIRCH', 'GRASS', ...])."""
+    url = DATASETS[dataset_name] + "/dataset.xml"
+    resp = _SESSION.get(url, timeout=30)
+    resp.raise_for_status()
+    root = ET.fromstring(resp.text)
+    allergens = []
+    for grid in root.iter("grid"):
+        name = grid.get("name", "")
+        if name.startswith("cnc_POLLEN_") and name.endswith("_m22"):
+            allergens.append(name[len("cnc_POLLEN_"):-len("_m22")])
+    return allergens
+
+
+def fetch_pollen(
     lat: str,
     lon: str,
+    allergen: str = "BIRCH",
     cache_file: str | None = None,
     hours: int = 24,
 ) -> tuple[str, list[tuple[datetime, float]]]:
-    """Fetch birch pollen forecast, using cached dataset resolution when available.
+    """Fetch pollen forecast for the given allergen, using cached dataset resolution when available.
 
     On first run for a given lat/lon the datasets are probed in preference order
     and the working one is written to cache_file. Subsequent runs skip straight to
@@ -39,7 +55,7 @@ def fetch_birch_pollen(
     Returns (dataset_name, readings).
     Raises RuntimeError if no dataset returns data.
     """
-    params = _build_params(lat, lon, hours)
+    params = _build_params(lat, lon, allergen, hours)
 
     if cache_file:
         cached = _read_cache(cache_file, lat, lon)
@@ -87,10 +103,10 @@ def _query(name: str, params: dict) -> list[tuple[datetime, float]] | None:
     return readings
 
 
-def _build_params(lat: str, lon: str, hours: int) -> dict:
+def _build_params(lat: str, lon: str, allergen: str, hours: int) -> dict:
     now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
     return {
-        "var": "cnc_POLLEN_BIRCH_m22",
+        "var": f"cnc_POLLEN_{allergen}_m22",
         "latitude": lat,
         "longitude": lon,
         "vertCoord": "12.5",
@@ -125,13 +141,13 @@ def _write_cache(cache_file: str, lat: str, lon: str, dataset: str) -> None:
 def _parse_csv(csv_text: str) -> list[tuple[datetime, float]]:
     lines = (l for l in csv_text.splitlines() if not l.startswith("#"))
     reader = csv.DictReader(lines)
-    birch_col = next((k for k in (reader.fieldnames or []) if "POLLEN_BIRCH" in k), None)
-    if birch_col is None:
+    pollen_col = next((k for k in (reader.fieldnames or []) if "POLLEN_" in k), None)
+    if pollen_col is None:
         return []
     rows = []
     for row in reader:
         try:
-            value = float(row[birch_col])
+            value = float(row[pollen_col])
             dt = datetime.fromisoformat(row["time"].replace("Z", "+00:00"))
             rows.append((dt, value))
         except (ValueError, KeyError):

@@ -9,8 +9,20 @@ schedule: "0 5 * * *"
 config:
   latitude: "YOUR_LATITUDE"
   longitude: "YOUR_LONGITUDE"
-  lookaheadHours: ""               # leave empty to use script default (24h)
-  pollenNotificationThreshold: ""  # leave empty to use script default (1 g/m³)
+  lookaheadHours: ""  # leave empty to use script default (24h)
+
+# Allergens to monitor with per-allergen notification thresholds (grains/m³).
+# Available in SILAM dataset (both regional and europe): ALDER, BIRCH
+#
+# EAN (European Aeroallergen Network) symptom-onset thresholds for BIRCH (doi:10.1007/s40629-025-00357-5):
+#   Very High  >= 200
+#   High       >=  69
+#   Moderate   >=  23
+#   Low        >=   7
+#   Very Low   >=   2
+allergens:
+  - name: BIRCH
+    threshold: 81
 
 # imagePullSecrets:
 #   - name: ghcr-pull-secret
