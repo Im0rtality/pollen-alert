@@ -1,5 +1,5 @@
 image:
-  repository: ghcr.io/laurynas/pollen-alert
+  repository: ghcr.io/im0rtality/pollen-alert
   tag: ""
   pullPolicy: Always
 
