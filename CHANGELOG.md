@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.4](https://github.com/Im0rtality/pollen-alert/compare/v1.6.3...v1.6.4) (2026-04-05)
+
+
+### Bug Fixes
+
+* log notify hours in local timezone instead of mislabeling as UTC ([1037d5d](https://github.com/Im0rtality/pollen-alert/commit/1037d5d36334ce3e9d44eb8fc7d372b52a3ae7e8))
+
 ## [1.6.3](https://github.com/Im0rtality/pollen-alert/compare/v1.6.2...v1.6.3) (2026-04-05)
 
 
