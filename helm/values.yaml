@@ -18,6 +18,7 @@ config:
   fetchIntervalHours: 1
   notifyHours:
     - 5
+  timezone: "UTC"
   allergens:
     - name: BIRCH
       threshold: 81
